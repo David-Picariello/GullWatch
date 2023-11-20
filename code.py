@@ -1,19 +1,41 @@
-# SPDX-FileCopyrightText: 2018 Anne Barela for Adafruit Industries
-#
-# SPDX-License-Identifier: MIT
-
 from adafruit_circuitplayground.express import cpx
+import board
+#import digitalio
+import servo
+import time
+import neopixel
+#import adafruit_motor.servo
 import array
 import math
 import audiobusio
-import board
-import time
 import pwmio
-from adafruit_motor import servo
+import analogio
+#from adafruit_motor import servo
+#import simpleio
+#from adafruit_circuitplayground import cp
+
+
+# Initialize a NeoPixel on pin A1 with 10 LEDs
+led = neopixel.NeoPixel(board.NEOPIXEL, 10)
+
+# Initialize a variable to control the alarm
+stop_alarm = True
+
 # servo
 pwm = pwmio.PWMOut(board.A1, frequency=50)
 motor_direction = 0
 my_servo = servo.ContinuousServo(pwm, min_pulse=400, max_pulse=2500)
+
+#Create the light sensor object to read from
+light = analogio.AnalogIn(board.LIGHT)
+#set lights and sound
+def flash_leds_and_play_tone():
+    while True:
+        # cpx.play_file("alarm.wav")
+        cpx.pixels.fill((200, 0, 0))
+        cpx.play_tone(261.63, 0.5)
+        cpx.pixels.fill((0, 0, 200))
+        time.sleep(0.5)
 # Sound Sensor
 def mean(values):
     return sum(values) / len(values)
@@ -32,56 +54,28 @@ mic = audiobusio.PDMIn(
 )
 samples = array.array('H', [0] * 160)
 mic.record(samples, len(samples))
-# Countdown
-def flash_leds_and_play_tone():
-    for _ in range(3):
-        cpx.pixels.fill((50, 0, 0))
-        cpx.play_tone(261.63, 0.5)
-        cpx.pixels.fill((0, 0, 0))
-        time.sleep(0.5)
-# LED control
-def alternate_led_colors():
-    num_leds = 10
-    for i in range(num_leds):
-        if i % 2 == 0:
-            cpx.pixels[i] = (0, 20, 0)
-        else:
-            cpx.pixels[i] = (20, 0, 0)
-    cpx.pixels.show()
-    time.sleep(1)
-    for i in range(num_leds):
-        if i % 2 == 0:
-            cpx.pixels[i] = (20, 0, 0)
-        else:
-            cpx.pixels[i] = (0, 20, 0)
-    cpx.pixels.show()
-    time.sleep(1)
+
 
 while True:
+    cpx.pixels.fill((0, 0, 0))
     my_servo.throttle = motor_direction
-
-    if cpx.switch:
-        cpx.play_file("speed.wav")
-        flash_leds_and_play_tone()
-        cpx.pixels.fill((0, 50, 0))
-        cpx.play_tone(440.00, 1)
-        cpx.pixels.fill((0, 0, 0))
-        motor_direction = 0.15
-
-    if cpx.button_b:
-        motor_direction = -1
-        cpx.play_file("dip.wav")
-        alternate_led_colors()
-
     if cpx.button_a:
-        motor_direction = 1
-        cpx.play_file("rise.wav")
-        alternate_led_colors()
+        stop_alarm = True
+        print("button a pressed")
+    if cpx.button_b:
+        stop_alarm = False
+        print("button b pressed")
 
     mic.record(samples, len(samples))
     magnitude = normalized_rms(samples)
     time.sleep(.1)
-    if magnitude > 400:
-        motor_direction = 0
-        cpx.pixels.fill((0, 0, 0))
+    print((light.value,))
+    print((magnitude,))
+    print((my_servo.throttle))
+    if stop_alarm is True:
+        if magnitude > 200 or light.value > 10:
+            motor_direction = .15
+            flash_leds_and_play_tone()
+            #cpx.pixels.fill((0, 0, 0))
+
 
